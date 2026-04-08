@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>🎴 Lok Yuk Casino - Baccarat & Chips</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    body { font-family: 'Times New Roman', Times, serif; background: linear-gradient(to bottom, #1d7e4d, #16613c); text-align: center; color: white; min-height: 100vh; margin: 0; padding: 20px; overflow-x: hidden; }
+    h1 { font-family: 'Comic Sans MS', cursive; font-size: 40px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); margin-bottom: 5px; }
+    
+    .status-bar { background: rgba(0,0,0,0.3); padding: 8px 15px; margin-bottom: 20px; border-radius: 20px; display: inline-block; font-size: 14px; border: 1px solid rgba(255,255,255,0.1); }
+    
+    /* --- CHIP DESIGN --- */
+    .chip {
+        display: inline-block; width: 40px; height: 40px; border-radius: 50%;
+        border: 4px dashed rgba(255,255,255,0.5); line-height: 40px;
+        font-weight: bold; font-family: Arial; font-size: 14px;
+        color: white; text-shadow: 1px 1px 2px black; cursor: pointer;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.4); margin: 2px;
+        transition: transform 0.1s; vertical-align: middle;
+    }
+    .chip:active { transform: scale(0.9); }
+    .chip-1 { background: #ecf0f1; color: #2c3e50; border-color: #bdc3c7; }
+    .chip-5 { background: #e74c3c; }
+    .chip-10 { background: #3498db; }
+    .chip-50 { background: #27ae60; }
+    .chip-100 { background: #2c3e50; border-color: #f1c40f; }
+
+    /* --- HOST CASHIER PANEL --- */
+    #cashier-panel {
+        background: rgba(0,0,0,0.6); border: 2px solid #f1c40f;
+        padding: 15px; border-radius: 15px; margin: 10px auto;
+        max-width: 500px; display: none;
+    }
+
+    /* --- CARD DESIGN --- */
+    .card {
+      display: inline-block; position: relative; width: 80px; height: 112px;
+      background: #fff; color: #000; border-radius: 6px;
+      box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+      font-family: Arial, sans-serif; transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+      backface-visibility: hidden; margin: 5px; box-sizing: border-box;
+    }
+    .card.heart, .card.diamond { color: #d63031; }
+    .card.spade, .card.club { color: #2d3436; }
+    .card .index { position: absolute; font-size: 18px; font-weight: bold; line-height: 1; text-align: center; width: 20px; }
+    .card .index.top { top: 4px; left: 4px; }
+    .card .index.bottom { bottom: 4px; right: 4px; transform: rotate(180deg); }
+    .card .suit-mini { font-size: 14px; display: block; margin-top: -2px; }
+    .card .face { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px 10px; box-sizing: border-box; }
+    .card .suit-large { font-size: 40px; }
+    .dealing { position: absolute; z-index: 100; pointer-events: none; margin: 0; }
+
+    /* --- UI ELEMENTS --- */
+    button { padding: 10px 20px; margin: 5px; font-size: 15px; border-radius: 20px; border: none; background: #f39c12; color: white; cursor: pointer; transition: 0.2s; box-shadow: 0 4px #d35400; font-weight: bold; font-family: 'Comic Sans MS', cursive;}
+    button:disabled { background: #7f8c8d; box-shadow: none; cursor: not-allowed; opacity: 0.5; }
+    
+    .player-area { display: inline-block; margin: 10px; padding: 15px; border-radius: 15px; background: rgba(0,0,0,0.5); width: 260px; vertical-align: top; border: 3px solid transparent; transition: 0.3s; }
+    .active-turn { border-color: #f1c40f; background: rgba(0,0,0,0.7); box-shadow: 0 0 20px rgba(241, 196, 15, 0.4); }
+    
+    .balance-tag { background: #2c3e50; border-radius: 10px; padding: 5px 10px; display: inline-block; margin-top: 10px; color: #f1c40f; font-weight: bold; border: 1px solid #f1c40f; }
+
+    #link-section { margin: 20px; padding: 15px; border: 2px dashed #f1c40f; background: rgba(0,0,0,0.3); border-radius: 10px; font-family: 'Comic Sans MS', cursive;}
+    #result { color: #f1c40f; font-family: 'Comic Sans MS', cursive; }
+  </style>
+</head>
+<body>
+
+<h1>🎴 Lok Yuk Casino</h1>
+
+<div class="status-bar">
+  <span id="conn-status">📡 Offline</span> | <span id="player-count">Players: 1</span>
+</div>
+
+<div id="setup-section">
+    <button onclick="initializePeer(true)">🏠 Host New Casino</button>
+</div>
+
+<div id="link-section" style="display:none;">
+    <p>Invite Players:</p>
+    <input type="text" id="share-url" readonly style="width: 60%; padding: 5px; border-radius: 5px; border: none; text-align: center;">
+    <button onclick="copyLink()">📋 Copy Link</button>
+</div>
+
+<div id="cashier-panel">
+    <h3 style="margin-top:0; color:#f1c40f;">🏦 CASINO BANK (Host)</h3>
+    <label>Send to:</label>
+    <select id="target-player-select" style="padding: 5px; border-radius: 5px;"></select>
+    <div style="margin-top:10px;">
+        <div class="chip chip-1" onclick="distributeChips(1)">1</div>
+        <div class="chip chip-5" onclick="distributeChips(5)">5</div>
+        <div class="chip chip-10" onclick="distributeChips(10)">10</div>
+        <div class="chip chip-50" onclick="distributeChips(50)">50</div>
+        <div class="chip chip-100" onclick="distributeChips(100)">100</div>
+    </div>
+</div>
+
+<div id="player-controls">
+    <button id="dealBtn" onclick="hostDealSequence()" style="display:none;">🎮 New Round</button>
+    <button id="hitBtn" onclick="playerAction('hit')" disabled>➕ Hit</button>
+    <button id="passBtn" onclick="playerAction('pass')" disabled>🛑 Pass</button>
+</div>
+
+<div id="table"></div>
+<h2 id="result">Waiting for dealer...</h2>
+
+<script>
+let peer, conn, connections = [], isHost = false;
+let myPeerId, turnIndex = 0, playersList = [];
+let gameState = { players: {}, deck: [], currentTurnId: null };
+
+const suits = [{ n: 'spade', sym: '♠' }, { n: 'heart', sym: '♥️' }, { n: 'diamond', sym: '♦️' }, { n: 'club', sym: '♣' }];
+const ranks = [{ r: 'A', v: 1 }, { r: '2', v: 2 }, { r: '3', v: 3 }, { r: '4', v: 4 }, { r: '5', v: 5 }, { r: '6', v: 6 }, { r: '7', v: 7 }, { r: '8', v: 8 }, { r: '9', v: 9 }, { r: '10', v: 10 }, { r: 'J', v: 10 }, { r: 'Q', v: 10 }, { r: 'K', v: 10 }];
+
+// --- 1. INITIALIZATION ---
+function initializePeer(asHost) {
+    document.getElementById('setup-section').style.display = 'none';
+    isHost = asHost;
+    const joinId = new URLSearchParams(window.location.search).get('join');
+    peer = new Peer();
+
+    peer.on('open', (id) => {
+        myPeerId = id;
+        if (isHost) setupHost(id); else connectToHost(joinId);
+    });
+
+    peer.on('connection', (c) => {
+        if (isHost) {
+            connections.push(c); playersList.push(c.peer);
+            updatePlayerCount();
+            gameState.players[c.peer] = { name: "Player " + playersList.length, hand: [], balance: 0 };
+            c.on('data', (data) => handlePlayerData(c.peer, data));
+            updateHostUI();
+            broadcastState();
+        }
+    });
+}
+
+function setupHost(id) {
+    updateStatus("🟢 Casino Open");
+    document.getElementById('link-section').style.display = 'block';
+    document.getElementById('dealBtn').style.display = 'inline-block';
+    document.getElementById('cashier-panel').style.display = 'block';
+    document.getElementById('share-url').value = window.location.origin + window.location.pathname + "?join=" + id;
+    playersList.push(id);
+    gameState.players[id] = { name: "Dealer (Host)", hand: [], balance: 1000 };
+    updateHostUI();
+    renderTable();
+}
+
+function connectToHost(id) {
+    updateStatus("🟡 Connecting...");
+    conn = peer.connect(id);
+    conn.on('open', () => updateStatus("🟢 Connected to Casino"));
+    conn.on('data', (data) => {
+        if (data.type === 'sync') { gameState = data.state; renderTable(); checkMyTurn(); }
+        if (data.type === 'animate') animateCard(data.card, data.targetId);
+        if (data.type === 'msg') document.getElementById('result').innerText = data.text;
+    });
+}
+
+// --- 2. CHIP DISTRIBUTION (HOST ONLY) ---
+function updateHostUI() {
+    const select = document.getElementById('target-player-select');
+    select.innerHTML = "";
+    playersList.forEach(id => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.innerText = gameState.players[id].name;
+        select.appendChild(option);
+    });
+}
+
+function distributeChips(amount) {
+    if (!isHost) return;
+    const targetId = document.getElementById('target-player-select').value;
+    gameState.players[targetId].balance += amount;
+    broadcast({ type: 'msg', text: `Dealer sent ${amount} chips to ${gameState.players[targetId].name}` });
+    broadcastState();
+}
+
+// --- 3. GAME LOGIC ---
+async function hostDealSequence() {
+    if (!isHost) return;
+    gameState.deck = [];
+    suits.forEach(s => ranks.forEach(r => gameState.deck.push({ s: s.n, r: r.r, v: r.v })));
+    gameState.deck.sort(() => Math.random() - 0.5);
+    
+    playersList.forEach(id => gameState.players[id].hand = []);
+    broadcast({ type: 'msg', text: "New Round: Dealing..." });
+    
+    for (let i = 0; i < 2; i++) {
+        for (let id of playersList) {
+            const card = gameState.deck.pop();
+            broadcast({ type: 'animate', card, targetId: id });
+            await animateCard(card, id);
+            gameState.players[id].hand.push(card);
+            broadcastState();
+        }
+    }
+    turnIndex = 0;
+    gameState.currentTurnId = playersList[turnIndex];
+    broadcastState();
+}
+
+function nextTurn() {
+    turnIndex++;
+    if (turnIndex < playersList.length) gameState.currentTurnId = playersList[turnIndex];
+    else hostEndGame();
+    broadcastState();
+}
+
+async function handleAction(peerId, actionType) {
+    if (gameState.currentTurnId !== peerId) return;
+    if (actionType === 'hit') {
+        const card = gameState.deck.pop();
+        broadcast({ type: 'animate', card, targetId: peerId });
+        await animateCard(card, peerId);
+        gameState.players[peerId].hand.push(card);
+    }
+    nextTurn();
+}
+
+function hostEndGame() {
+    gameState.currentTurnId = null;
+    let scores = playersList.map(id => ({ id, score: getScore(gameState.players[id].hand) }));
+    let winner = scores.reduce((prev, curr) => (prev.score > curr.score) ? prev : curr);
+    let msg = `Round Over! Winner: ${gameState.players[winner.id].name} with ${winner.score}`;
+    document.getElementById('result').innerText = msg;
+    broadcast({ type: 'msg', text: msg });
+    broadcastState();
+}
+
+// --- 4. RENDER & HELPERS ---
+function getScore(hand) { return hand.reduce((a, b) => a + b.v, 0) % 10; }
+
+function renderTable() {
+    const table = document.getElementById("table");
+    table.innerHTML = "";
+    playersList.forEach(id => {
+        const p = gameState.players[id]; if (!p) return;
+        const div = document.createElement("div");
+        div.className = `player-area ${gameState.currentTurnId === id ? 'active-turn' : ''}`;
+        div.id = 'area-' + id;
+        div.innerHTML = `
+            <h3>${p.name}</h3>
+            <div class="hand">${p.hand.map(c => getCardHtml(c)).join("")}</div>
+            <div class="balance-tag">💰 Balance: ${p.balance}</div>
+            <p style="margin-top:10px;">Score: <strong>${getScore(p.hand)}</strong></p>
+        `;
+        table.appendChild(div);
+    });
+}
+
+function getCardHtml(c) {
+    const suit = suits.find(s => s.n === c.s);
+    return `<div class="card ${c.s}"><div class="index top">${c.r}<span class="suit-mini">${suit.sym}</span></div><div class="face"><span class="suit-large">${suit.sym}</span></div><div class="index bottom">${c.r}<span class="suit-mini">${suit.sym}</span></div></div>`;
+}
+
+async function animateCard(cardObj, targetId) {
+    const shoe = document.querySelector('.deck-stack');
+    const hand = document.getElementById('area-' + targetId)?.querySelector('.hand');
+    if (!hand) return;
+    const cardEl = document.createElement('div');
+    cardEl.className = 'card dealing';
+    cardEl.innerHTML = getCardHtml(cardObj);
+    const shoeRect = shoe.getBoundingClientRect();
+    cardEl.style.left = shoeRect.left + 'px'; cardEl.style.top = shoeRect.top + 'px';
+    document.body.appendChild(cardEl);
+    cardEl.offsetHeight;
+    const targetRect = hand.getBoundingClientRect();
+    cardEl.style.transform = `translate(${targetRect.left - shoeRect.left + 40}px, ${targetRect.top - shoeRect.top}px) rotate(360deg)`;
+    return new Promise(r => setTimeout(() => { cardEl.remove(); r(); }, 600));
+}
+
+// Standard Boilerplate
+function handlePlayerData(pId, data) { if (data.type === 'action') handleAction(pId, data.actionType); }
+function checkMyTurn() { const isMyTurn = (gameState.currentTurnId === myPeerId); document.getElementById('hitBtn').disabled = !isMyTurn; document.getElementById('passBtn').disabled = !isMyTurn; }
+function playerAction(t) { if (isHost) handleAction(myPeerId, t); else conn.send({ type: 'action', actionType: t }); }
+function broadcastState() { if (!isHost) return; renderTable(); checkMyTurn(); broadcast({ type: 'sync', state: gameState }); }
+function broadcast(d) { connections.forEach(c => c.send(d)); }
+function updateStatus(t) { document.getElementById('conn-status').innerText = t; }
+function updatePlayerCount() { document.getElementById('player-count').innerText = "Players: " + (connections.length); }
+function copyLink() { document.getElementById("share-url").select(); navigator.clipboard.writeText(document.getElementById("share-url").value); alert("Link copied!"); }
+window.onload = () => { if (new URLSearchParams(window.location.search).has('join')) initializePeer(false); };
+</script>
+</body>
+</html>
